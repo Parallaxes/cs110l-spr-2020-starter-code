@@ -2,6 +2,7 @@ use crate::debugger_command::DebuggerCommand;
 use crate::inferior::Inferior;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
+use crate::inferior::Status;
 
 pub struct Debugger {
     target: String,
@@ -35,15 +36,45 @@ impl Debugger {
                     if let Some(inferior) = Inferior::new(&self.target, &args) {
                         // Create the inferior
                         self.inferior = Some(inferior);
-                        // TODO (milestone 1): make the inferior run
-                        // You may use self.inferior.as_mut().unwrap() to get a mutable reference
-                        // to the Inferior object
+                        
+                        match self.inferior.as_mut().unwrap().continue_run(None).unwrap() {
+                            Status::Exited(exit_code) => {
+                                println!("Child exited (status {})", exit_code);
+                                self.inferior = None;
+                            }
+                            Status::Signaled(signal) => {
+                                println!("Child exited due to signal {}", signal);
+                                self.inferior = None;
+                            }
+                            Status::Stopped(_signal, _rip) => {
+                                println!("");
+                            }
+                        }
                     } else {
                         println!("Error starting subprocess");
                     }
                 }
                 DebuggerCommand::Quit => {
                     return;
+                }
+                DebuggerCommand::Continue => {
+                    if self.inferior.is_none() {
+                        println!("No running process to continue");
+                    } else {
+                        match self.inferior.as_mut().unwrap().continue_run(None).unwrap() {
+                            Status::Exited(exit_code) => {
+                                println!("Child exited (status {})", exit_code);
+                                self.inferior = None;
+                            }
+                            Status::Signaled(signal) => {
+                                println!("Child exited due to signal {}", signal);
+                                self.inferior = None;
+                            }
+                            Status::Stopped(signal, rip) => {
+                                println!("Not implemented");
+                            }
+                        }
+                    }
                 }
             }
         }
